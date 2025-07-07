@@ -1,96 +1,100 @@
 #pragma once
 #include <zephyr/device.h>
-#include <zephyr/kernel.h>
-#include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/i2c.h>
-struct a320_data {
-    uint16_t x_position;
-    uint16_t y_position;
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/sensor.h>
+#include <zephyr/input/input.h>
+#include <sys/atomic.h>
+
+/* 设备树兼容性标识 */
+#define DT_DRV_COMPAT avago_a320
+
+/* 传感器通道扩展 (基于Zephyr标准扩展) */
+enum a320_channel {
+    /* 基础位移通道 */
+    A320_CHAN_DELTA_X = SENSOR_CHAN_PRIV_START,  // 0x100起始
+    A320_CHAN_DELTA_Y,
+    A320_CHAN_MOTION_STATE,
+    
+    /* 增强诊断通道 */
+    A320_CHAN_OVF_STATUS,        // 数据溢出状态
+    A320_CHAN_TEMPERATURE,       // 传感器温度
+    A320_CHAN_POWER_MODE         // 当前功耗模式
 };
 
+/* 设备配置结构 (设备树动态适配) */
 struct a320_config {
-    struct i2c_dt_spec bus;
-    struct k_mutex polling_mutex;
-#if DT_INST_NODE_HAS_PROP(0, nrst_gpios)
-    struct gpio_dt_spec nrst_gpio;
-#endif
-#if DT_INST_NODE_HAS_PROP(0, motion_gpios)
-    struct gpio_dt_spec motion_gpio;
-#endif
-#if DT_INST_NODE_HAS_PROP(0, orient_gpios)
-    struct gpio_dt_spec orient_gpio;
-#endif
-#if DT_INST_NODE_HAS_PROP(0, shutdown_gpios)
-    struct gpio_dt_spec shutdown_gpio;
-#endif
+    struct i2c_dt_spec bus;      // I2C总线配置
+    
+    /* 可选GPIO (通过设备树条件编译) */
+    #if DT_INST_NODE_HAS_PROP(0, reset_gpios)
+        struct gpio_dt_spec reset_gpio;    // 硬件复位引脚
+    #endif
+    #if DT_INST_NODE_HAS_PROP(0, motion_gpios)
+        struct gpio_dt_spec motion_gpio;   // 运动中断引脚
+    #endif
+    #if DT_INST_NODE_HAS_PROP(0, shutdown_gpios)
+        struct gpio_dt_spec shutdown_gpio; // 低功耗控制引脚
+    #endif
+    
+    uint16_t polling_interval;    // 轮询间隔(ms)，设备树可配置
 };
 
-static const struct a320_config a320_cfg_0 = {
-    .bus = I2C_DT_SPEC_INST_GET(0),
-#if DT_INST_NODE_HAS_PROP(0, nrst_gpios)
-    .nrst_gpio = GPIO_DT_SPEC_INST_GET(0, nrst_gpios),
-#endif
-#if DT_INST_NODE_HAS_PROP(0, motion_gpios)
-    .motion_gpio = GPIO_DT_SPEC_INST_GET(0, motion_gpios),
-#endif
-#if DT_INST_NODE_HAS_PROP(0, orient_gpios)
-    .orient_gpio = GPIO_DT_SPEC_INST_GET(0, orient_gpios),
-#endif
-#if DT_INST_NODE_HAS_PROP(0, shutdown_gpios)
-    .shutdown_gpio = GPIO_DT_SPEC_INST_GET(0, shutdown_gpios),
-#endif
+/* 设备运行时数据 */
+struct a320_data {
+    struct k_mutex data_mutex;    // 数据互斥锁
+    atomic_t is_scroll_mode;      // 滚动模式原子标志
+    atomic_t is_boost_mode;       // 加速模式原子标志
+    atomic_t is_slow_mode;        // 减速模式原子标志
+    
+    /* 运动检测 */
+    struct gpio_callback motion_cb;   // 中断回调
+    struct k_sem motion_sem;          // 事件信号量
+    
+    /* 线程控制 */
+    struct k_thread thread;           // 数据处理线程
+    K_THREAD_STACK_MEMBER(thread_stack, CONFIG_A320_THREAD_STACK_SIZE);
+    
+    /* 传感器状态 */
+    uint8_t last_motion;     // 最近运动状态
+    int8_t delta_x;          // X轴位移
+    int8_t delta_y;          // Y轴位移
+    uint32_t error_count;    // I2C错误计数器
 };
 
-// A320 Register Defines
-#define Product_ID 0x00
-#define Revision_ID 0x01
-#define Motion 0x02
-#define Delta_X 0x03
-#define Delta_Y 0x04
-#define SQUAL 0x05
-#define Shutter_Upper 0x06
-#define Shutter_Lower 0x07
-#define Maximum_Pixel 0x08
-#define Pixel_Sun 0x09
-#define Minimum_Pixel 0x0a
-#define Pixel_Grab 0x0b
-#define CRC0 0x0c
-#define CRC1 0x0d
-#define CRC2 0x0e
-#define CRC3 0x0f
+/* ================= 寄存器定义 (完整版) ================= */
+#define A320_REG_PRODUCT_ID       0x00
+#define A320_REG_REVISION_ID      0x01
+#define A320_REG_MOTION           0x02    // 运动状态
+#define A320_REG_DELTA_X          0x03    // X轴位移
+#define A320_REG_DELTA_Y          0x04    // Y轴位移
+#define A320_REG_SQUAL            0x05    // 表面质量
+#define A320_REG_CONFIG           0x11    // 工作模式配置
+#define A320_REG_OBSERVATION      0x2E    // 诊断观测值
+#define A320_REG_POWER_UP_RESET   0x3A    // 软复位控制
+#define A320_REG_SHUTDOWN         0x42    // 低功耗控制
 
-#define Self_Test 0x10
-#define Configuration_Bits 0x11
-#define LED_Control 0x1a
-#define IO_Mode 0x1c
-#define Motion_Control 0x1d
-#define Observation 0x2e
-#define Soft_RESET 0x3a
-#define Shutter_Max_Hi 0x3b
-#define Shutter_Max_Lo 0x3c
-#define Inverse_Revision_ID 0x3e
-#define Inverse_Product_ID 0x3f
-#define OFN_Engine 0x60
-#define OFN_Resolution 0x62
-#define OFN_Speed_Control 0x63
-#define OFN_Speed_ST12 0x64
-#define OFN_Speed_ST21 0x65
-#define OFN_Speed_ST23 0x66
-#define OFN_Speed_ST32 0x67
-#define OFN_Speed_ST34 0x68
-#define OFN_Speed_ST43 0x69
-#define OFN_Speed_ST45 0x6a
-#define OFN_Speed_ST54 0x6b
-#define OFN_AD_CTRL 0x6d
-#define OFN_AD_ATH_HIGH 0x6e
-#define OFN_AD_DTH_HIGH 0x6f
-#define OFN_AD_ATH_LOW 0x70
-#define OFN_AD_DTH_LOW 0x71
-#define OFN_Quantize_CTRL 0x73
-#define OFN_XYQ_THRESH 0x74
-#define OFN_FPD_CTRL 0x75
-#define OFN_Orientation_CTRL 0x77
+/* 状态位掩码 */
+#define A320_BIT_MOTION_MOT   (1 << 7)  // 运动检测标志
+#define A320_BIT_MOTION_OVF   (1 << 4)  // 位移溢出标志
+#define A320_BIT_CONFIG_SLEEP (1 << 2)  // 休眠模式标志
 
-/* Detection */
-#define BIT_MOTION_MOT (1 << 7)
-#define BIT_MOTION_OVF (1 << 4)
+/* ================= 模式参数 ================= */
+#define A320_SCROLL_SPEED_DIVIDER    6   // 滚轮模式速度除数
+#define A320_BOOST_SPEED_MULTIPLIER  2   // 加速模式倍数
+#define A320_SLOW_SPEED_DIVIDER      2   // 慢速模式除数
+#define A320_DEFAULT_POLLING_MS     10   // 默认采样间隔
+
+/* ================== 驱动API声明 ================== */
+int a320_init(const struct device *dev);
+int a320_sample_fetch(const struct device *dev, enum sensor_channel chan);
+int a320_channel_get(const struct device *dev, enum sensor_channel chan, 
+                     struct sensor_value *val);
+
+/* 模式控制API (线程安全) */
+void a320_set_scroll_mode(const struct device *dev, bool enable);
+void a320_set_boost_mode(const struct device *dev, bool enable);
+void a320_set_slow_mode(const struct device *dev, bool enable);
+
+/* 诊断API */
+int a320_get_error_count(const struct device *dev);
