@@ -1,37 +1,23 @@
-compatible: "avago,a320"
-include: i2c-device.yaml
+/* 文件名：drivers/touchpad/touchpad_a320.h */
+#pragma once
 
-properties:
-  reset-gpios:
-    type: phandle-array
-    required: false
-    description: Active-low hardware reset pin
-  motion-gpios:
-    type: phandle-array
-    required: true
-    description: Motion interrupt pin (rising-edge triggered)
-  orientation-gpios:
-    type: phandle-array
-    required: false
-    description: Sensor orientation control (normal/inverted)
-  shutdown-gpios:
-    type: phandle-array
-    required: false
-    description: Active-low power shutdown control
-  polling-interval-ms:
-    type: int
-    required: false
-    default: 10
-    description: Polling interval in milliseconds (if no interrupt)
+#include <zephyr/device.h>
+#include <zephyr/drivers/i2c.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/input/input.h>
 
-# 设备树配置示例
-example: |
-  a320@3b {
-      compatible = "avago,a320";
-      reg = <0x3b>;
-      motion-gpios = <&gpio0 13 (GPIO_ACTIVE_HIGH | GPIO_INT_EDGE_RISING)>;
-      reset-gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
-      orientation-gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
-      shutdown-gpios = <&gpio0 15 GPIO_ACTIVE_LOW>;
-      polling-interval-ms = <20>; // Fallback if no interrupt
-  };
+#define DT_DRV_COMPAT pixart_a320
+
+/* 设备配置结构 */
+struct touchpad_config {
+    struct i2c_dt_spec bus;          // I2C总线配置[8](@ref)
+    struct gpio_dt_spec motion_gpio; // 运动中断引脚[8](@ref)
+    struct gpio_dt_spec reset_gpio;  // 可选复位引脚[8](@ref)
+};
+
+/* 设备数据结构 */
+struct touchpad_data {
+    struct gpio_callback motion_cb;
+    struct k_work work;
+    const struct device *input_dev;  // 输入设备指针[4](@ref)
+};
