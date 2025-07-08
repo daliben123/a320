@@ -1,51 +1,37 @@
-description: Avago A320 Optical Motion Sensor Driver with touchpad functionality
-
 compatible: "avago,a320"
-
 include: i2c-device.yaml
 
 properties:
-    reset-gpios:
-      type: phandle-array
-      required: false
-      description: |
-        Reset pin for the A320 sensor. Active low.
-        Used to reset the device to its default state.
+  reset-gpios:
+    type: phandle-array
+    required: false
+    description: Active-low hardware reset pin
+  motion-gpios:
+    type: phandle-array
+    required: true
+    description: Motion interrupt pin (rising-edge triggered)
+  orientation-gpios:
+    type: phandle-array
+    required: false
+    description: Sensor orientation control (normal/inverted)
+  shutdown-gpios:
+    type: phandle-array
+    required: false
+    description: Active-low power shutdown control
+  polling-interval-ms:
+    type: int
+    required: false
+    default: 10
+    description: Polling interval in milliseconds (if no interrupt)
 
-    motion-gpios:
-      type: phandle-array
-      required: true
-      description: |
-        Motion detection output pin. Goes high when motion is detected.
-        Configured as an interrupt to trigger motion processing.
-
-    orientation-gpios:
-      type: phandle-array
-      required: false
-      description: |
-        Orientation control pin. Configures the sensor's orientation
-        (e.g., normal or inverted).
-
-    shutdown-gpios:
-      type: phandle-array
-      required: false
-      description: |
-        Shutdown control pin. Active low.
-        When pulled low, puts the sensor into a low-power state.
-
-    input-dev-name:
-      type: string
-      required: true
-      description: |
-        Name of the input device to use for gesture emulation.
-        Typically an existing keyboard device (e.g., "keyboard0").
-
-# Example usage in a device tree:
-# a320@3b {
-#     compatible = "avago,a320";
-#     reg = <0x3b>;
-#     motion-gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
-#     input-dev-name = "keyboard0";
-#     reset-gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
-#     shutdown-gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
-# };
+# 设备树配置示例
+example: |
+  a320@3b {
+      compatible = "avago,a320";
+      reg = <0x3b>;
+      motion-gpios = <&gpio0 13 (GPIO_ACTIVE_HIGH | GPIO_INT_EDGE_RISING)>;
+      reset-gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
+      orientation-gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
+      shutdown-gpios = <&gpio0 15 GPIO_ACTIVE_LOW>;
+      polling-interval-ms = <20>; // Fallback if no interrupt
+  };
