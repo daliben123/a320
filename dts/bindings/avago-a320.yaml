@@ -1,20 +1,17 @@
-description: Trackpad driver
-compatible: "zmk,trackpad"
+description: Trackpad input device
+compatible: "vendor,trackpad"
 include: base.yaml
 
 properties:
-  compatible:
-    type: string-array
-    required: true
-  reg:
-    type: int
-    required: true
-  shutdown-gpios:
-    type: phandle-array
-    required: true
-  motion-gpios:
+  shtdwn-gpios:
     type: phandle-array
     required: true
   reset-gpios:
     type: phandle-array
     required: true
+  motion-gpios:
+    type: phandle-array
+    required: true
+  scroll-speed-divider:
+    type: int
+    default: 4
