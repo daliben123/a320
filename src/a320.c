@@ -19,22 +19,22 @@ enum {
 
 /* 设备配置结构 */
 struct trackpad_config {
-    struct i2c_dt_spec i2c;
-    struct gpio_dt_spec shtdwn_gpio;
-    struct gpio_dt_spec reset_gpio;
-    struct gpio_dt_spec motion_gpio;
-    uint8_t scroll_speed_div;
+    struct i2c_dt_spec i2c;                 // I2C设备规格
+    struct gpio_dt_spec shtdwn_gpio;        // 关机控制引脚
+    struct gpio_dt_spec reset_gpio;         // 复位控制引脚
+    struct gpio_dt_spec motion_gpio;        // 运动检测引脚
+    uint8_t scroll_speed_div;               // 滚动速度除数
 };
 
 /* 设备运行时数据 */
 struct trackpad_data {
-    struct k_spinlock lock;
-    int8_t acc_delta_x;
-    int8_t acc_delta_y;
-    bool is_scroll_mode;
-    struct k_work work;
-    struct gpio_callback isr_cb;
-    const struct device *dev;
+    struct k_spinlock lock;                 // 自旋锁保护共享数据
+    int8_t acc_delta_x;                     // X轴位移累计值
+    int8_t acc_delta_y;                     // Y轴位移累计值
+    bool is_scroll_mode;                    // 滚动模式标志
+    struct k_work work;                     // 工作队列
+    struct gpio_callback isr_cb;            // 中断回调
+    const struct device *dev;               // 设备实例
 };
 
 /* I2C安全读取 */
