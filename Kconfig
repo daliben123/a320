@@ -1,5 +1,5 @@
-menuconfig INPUT_A320
-    bool "A320 touchpad Driver"
-    depends on I2C
+menuconfig PAW3222
+    bool "PAW3222 mouse optical sensor"
+  select SPI
     help
-      Enable driver for A320
+      Enable PAW3222 mouse optical sensor.
