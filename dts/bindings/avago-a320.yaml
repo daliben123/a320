@@ -1,6 +1,7 @@
 description: Trackpad driver
 compatible: "zmk,trackpad"
 include: base.yaml
+
 properties:
   compatible:
     type: string-array
@@ -8,12 +9,12 @@ properties:
   reg:
     type: int
     required: true
-  int-gpios:
+  shutdown-gpios:
+    type: phandle-array
+    required: true
+  motion-gpios:
     type: phandle-array
     required: true
   reset-gpios:
-    type: phandle-array
-    required: true
-  shutdown-gpios:
     type: phandle-array
     required: true
