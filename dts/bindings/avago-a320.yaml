@@ -6,12 +6,15 @@ properties:
   shtdwn-gpios:
     type: phandle-array
     required: true
+    
   reset-gpios:
     type: phandle-array
     required: true
+    
   motion-gpios:
     type: phandle-array
     required: true
+    
   scroll-speed-divider:
     type: int
     default: 4
