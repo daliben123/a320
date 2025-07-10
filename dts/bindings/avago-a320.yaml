@@ -1,22 +1,19 @@
-# 文件名：dts/bindings/sensor/touchpad-a320.yaml
-description: PixArt A320 Touchpad Driver
-compatible: "pixart,a320"
-include: i2c-device.yaml
-
+description: Trackpad driver
+compatible: "zmk,trackpad"
+include: base.yaml
 properties:
-  motion-gpios:
+  compatible:
+    type: string-array
+    required: true
+  reg:
+    type: int
+    required: true
+  int-gpios:
     type: phandle-array
     required: true
-    description: Motion interrupt GPIO pin[8](@ref)
   reset-gpios:
     type: phandle-array
-    required: false
-    description: Hardware reset GPIO pin (optional)[8](@ref)
-
-child-binding:
-  description: I2C device properties
-  properties:
-    reg:
-      required: true
-      type: int
-      description: I2C device address (0x3B)[5](@ref)
+    required: true
+  shutdown-gpios:
+    type: phandle-array
+    required: true
